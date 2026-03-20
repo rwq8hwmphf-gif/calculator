@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>药品审核计算器</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+  :root {
+    --bg:#f0f4f8;--card:#fff;--primary:#2563eb;--primary-light:#eff6ff;
+    --text:#1e293b;--text-sub:#64748b;--border:#e2e8f0;
+    --danger:#dc2626;--danger-bg:#fef2f2;--danger-bd:#fca5a5;
+    --ok-bg:#f0fdf4;--ok-bd:#86efac;--input-bg:#f8fafc;
+    --radius:14px;--shadow:0 2px 12px rgba(0,0,0,0.08);
+    --warn:#d97706;--warn-bg:#fffbeb;--warn-bd:#fcd34d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);padding:16px;padding-bottom:60px}
+  header{text-align:center;padding:20px 0 16px}
+  header h1{font-size:18px;font-weight:700;color:var(--primary)}
+  header p{font-size:12px;color:var(--text-sub);margin-top:4px}
+
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+  .card-title{font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+  .card-title::before{content:'';display:block;width:3px;height:13px;background:var(--primary);border-radius:2px}
+
+  /* 模式选择 */
+  .mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .mode-tab{padding:12px 8px;border:2px solid var(--border);border-radius:10px;text-align:center;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-sub);background:#fff;transition:all .2s;line-height:1.5}
+  .mode-tab.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary);font-weight:700}
+  .mode-tab b{display:block;font-size:14px;margin-bottom:2px}
+  .mode-desc{font-size:12px;color:var(--text-sub);margin-top:10px;padding:10px;background:var(--input-bg);border-radius:8px;line-height:1.7}
+
+  /* 天数 */
+  .days-row{display:flex;align-items:center;gap:10px}
+  .days-row label{font-size:14px;white-space:nowrap}
+  .days-row input{width:80px;text-align:center;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:#fff;-webkit-appearance:none}
+  .days-row input:focus{outline:none;border-color:var(--primary)}
+  .days-formula{font-size:13px;color:var(--text-sub);margin-top:8px}
+  .days-formula span{color:var(--primary);font-weight:700}
+
+  /* 药品输入 */
+  .drug-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .drug-block{background:var(--input-bg);border-radius:10px;padding:12px;border:1.5px solid var(--border);transition:border-color .2s}
+  .drug-block:focus-within{border-color:var(--primary)}
+  .drug-name{font-size:13px;font-weight:700;color:var(--primary);text-align:center;margin-bottom:10px}
+  .opt{font-size:10px;color:var(--text-sub);font-weight:400;margin-left:3px}
+  .field{margin-bottom:8px}
+  .field label{font-size:11px;color:var(--text-sub);display:block;margin-bottom:3px}
+  .field input{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:var(--text);transition:border-color .2s;-webkit-appearance:none}
+  .field input:focus{outline:none;border-color:var(--primary)}
+  .field input::placeholder{color:#cbd5e1}
+
+  /* 模式二分隔线 */
+  .drug-divider{height:1px;background:var(--border);margin:4px 0 12px;position:relative}
+  .drug-divider::after{content:'以下药品独立计算';position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--bg);padding:0 8px;font-size:11px;color:var(--text-sub);white-space:nowrap}
+
+  /* 按钮 */
+  .calc-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:1px;margin-top:4px;transition:background .2s,transform .1s}
+  .calc-btn:active{background:#1d4ed8;transform:scale(.98)}
+  .reset-btn{width:100%;padding:12px;background:transparent;color:var(--text-sub);border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:inherit;cursor:pointer;margin-top:8px}
+
+  .error-msg{display:none;background:#fef2f2;border:1px solid #fca5a5;color:var(--danger);padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:8px}
+
+  /* 结果 */
+  .result-wrap{display:none;animation:fadeUp .3s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+  .verdict-ok{background:var(--ok-bg);border:2px solid var(--ok-bd);border-radius:var(--radius);padding:16px;text-align:center;font-size:17px;font-weight:700;color:#166534;margin-bottom:8px}
+  .verdict-over{background:var(--danger-bg);border:2px solid var(--danger-bd);border-radius:var(--radius);padding:14px 16px;font-size:16px;font-weight:700;color:var(--danger);text-align:center;margin-bottom:10px}
+  .verdict-partial{background:var(--warn-bg);border:2px solid var(--warn-bd);border-radius:var(--radius);padding:14px 16px;font-size:15px;font-weight:700;color:var(--warn);text-align:center;margin-bottom:10px}
+
+  .stat-box{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:10px}
+  .stat-label{font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+  .stat-label.red{font-size:14px;color:var(--danger);text-transform:none;letter-spacing:0;font-weight:700}
+  .stat-label.green{font-size:14px;color:#166534;text-transform:none;letter-spacing:0;font-weight:700}
+
+  .drug-row{display:flex;align-items:baseline;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)}
+  .drug-row:last-of-type{border-bottom:none}
+  .drug-row-name{font-size:13px;color:var(--text-sub)}
+  .drug-row-name.red{color:var(--danger)}
+  .drug-row-val{font-size:15px;font-weight:700;color:var(--text)}
+  .drug-row-val.red{color:var(--danger)}
+  .drug-row-sub{font-size:12px;color:var(--text-sub);font-weight:400;margin-left:4px}
+
+  .maintain-row{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px;color:var(--text);line-height:1.6}
+  .maintain-row b{font-weight:700;color:var(--text)}
+
+  /* 模式二独立药品结果块 */
+  .drug-result-block{border-radius:12px;padding:14px;margin-bottom:10px}
+  .drug-result-block.ok{background:var(--ok-bg);border:1.5px solid var(--ok-bd)}
+  .drug-result-block.over{background:var(--danger-bg);border:1.5px solid var(--danger-bd)}
+  .drug-result-title{font-size:14px;font-weight:700;margin-bottom:8px}
+  .drug-result-title.ok{color:#166534}
+  .drug-result-title.over{color:var(--danger)}
+  .drug-result-detail{font-size:13px;color:var(--text);line-height:1.7}
+  .drug-result-detail b{font-weight:700}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>药品审核计算器</h1>
+  <p>医保参保人员用药合规审核工具</p>
+</header>
+
+<!-- 模式选择 -->
+<div class="card">
+  <div class="card-title">计算模式</div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="tab1" onclick="setMode(1)">同种药</div>
+    <div class="mode-tab" id="tab2" onclick="setMode(2)">不同药</div>
+  </div>
+</div>
+
+<!-- 审核天数 -->
+<div class="card">
+  <div class="card-title">审核天数设置</div>
+  <div class="days-row">
+    <label>审核天数 =</label>
+    <input type="number" id="days_x" placeholder="填入天数" min="0" inputmode="numeric">
+    <label>天</label>
+  </div>
+  <div class="days-formula">审核总天数 = 填入天数 + 30 = <span id="total_days_preview">—</span> 天</div>
+</div>
+
+<!-- 模式一输入 -->
+<div id="mode1_input">
+  <div class="card">
+    <div class="card-title">药品规格（A必填，B/C/D选填）</div>
+    <div class="drug-grid">
+      <div class="drug-block">
+        <div class="drug-name">规格 A</div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m1_daily_a" placeholder="如 3" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m1_perbox_a" placeholder="如 60" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m1_boxes_a" placeholder="如 50" min="0" inputmode="decimal"></div>
+      </div>
+      <div class="drug-block">
+        <div class="drug-name">规格 B<span class="opt">选填</span></div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m1_daily_b" placeholder="选填" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m1_perbox_b" placeholder="选填" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m1_boxes_b" placeholder="选填" min="0" inputmode="decimal"></div>
+      </div>
+      <div class="drug-block">
+        <div class="drug-name">规格 C<span class="opt">选填</span></div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m1_daily_c" placeholder="选填" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m1_perbox_c" placeholder="选填" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m1_boxes_c" placeholder="选填" min="0" inputmode="decimal"></div>
+      </div>
+      <div class="drug-block">
+        <div class="drug-name">规格 D<span class="opt">选填</span></div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m1_daily_d" placeholder="选填" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m1_perbox_d" placeholder="选填" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m1_boxes_d" placeholder="选填" min="0" inputmode="decimal"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 模式二输入 -->
+<div id="mode2_input" style="display:none">
+  <div class="card">
+    <div class="card-title">药品（A必填，B/C/D选填）</div>
+    <div class="drug-grid">
+      <div class="drug-block">
+        <div class="drug-name">药品 A</div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m2_daily_a" placeholder="如 3" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m2_perbox_a" placeholder="如 60" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m2_boxes_a" placeholder="如 50" min="0" inputmode="decimal"></div>
+      </div>
+      <div class="drug-block">
+        <div class="drug-name">药品 B<span class="opt">选填</span></div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m2_daily_b" placeholder="选填" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m2_perbox_b" placeholder="选填" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m2_boxes_b" placeholder="选填" min="0" inputmode="decimal"></div>
+      </div>
+      <div class="drug-block">
+        <div class="drug-name">药品 C<span class="opt">选填</span></div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m2_daily_c" placeholder="选填" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m2_perbox_c" placeholder="选填" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m2_boxes_c" placeholder="选填" min="0" inputmode="decimal"></div>
+      </div>
+      <div class="drug-block">
+        <div class="drug-name">药品 D<span class="opt">选填</span></div>
+        <div class="field"><label>每日剂量（片）</label><input type="number" id="m2_daily_d" placeholder="选填" min="0" inputmode="decimal"></div>
+        <div class="field"><label>每盒片数</label><input type="number" id="m2_perbox_d" placeholder="选填" min="1" inputmode="decimal"></div>
+        <div class="field"><label>实际配药（盒）</label><input type="number" id="m2_boxes_d" placeholder="选填" min="0" inputmode="decimal"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="error-msg" id="error_msg">⚠️ 请填写审核天数及药品 A 的完整资料</div>
+<button class="calc-btn" onclick="calculate()">开始审核</button>
+
+<!-- 结果区 -->
+<div class="result-wrap" id="result_wrap"></div>
+
+<script>
+let currentMode = 1;
+
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('tab1').classList.toggle('active', m === 1);
+  document.getElementById('tab2').classList.toggle('active', m === 2);
+  document.getElementById('mode1_input').style.display = m === 1 ? '' : 'none';
+  document.getElementById('mode2_input').style.display = m === 2 ? '' : 'none';
+  document.getElementById('result_wrap').style.display = 'none';
+  document.getElementById('error_msg').style.display = 'none';
+}
+
+document.getElementById('days_x').addEventListener('input', function() {
+  const x = parseFloat(this.value);
+  document.getElementById('total_days_preview').textContent = (!isNaN(x) && x >= 0) ? (x + 30) : '—';
+});
+
+function v(id) {
+  const n = parseFloat(document.getElementById(id).value);
+  return isNaN(n) ? null : n;
+}
+
+function fmt(n) { return Number.isInteger(n) ? n : n.toFixed(1); }
+
+function calculate() {
+  document.getElementById('error_msg').style.display = 'none';
+  const x = v('days_x');
+  if (x === null || x < 0) { showError(); return; }
+  const days = x + 30;
+  if (currentMode === 1) calcMode1(days);
+  else calcMode2(days);
+}
+
+// ── 模式一：同种药合并，各规格可吃天数加总 ──
+function calcMode1(days) {
+  const prefix = 'm1_';
+  const labels = ['A','B','C','D'];
+  const drugs = labels.map(l => ({
+    lbl: l,
+    daily:  v(prefix + 'daily_'  + l.toLowerCase()),
+    perbox: v(prefix + 'perbox_' + l.toLowerCase()),
+    boxes:  v(prefix + 'boxes_'  + l.toLowerCase()),
+  }));
+
+  if (drugs[0].daily === null || drugs[0].perbox === null || drugs[0].boxes === null) {
+    showError(); return;
+  }
+
+  const valid = drugs.filter(d => d.daily !== null && d.perbox !== null && d.boxes !== null && d.perbox > 0);
+
+  // 各规格可吃天数 = boxes × perbox ÷ daily
+  const eachDays = valid.map(d => ({
+    ...d,
+    canDays: (d.boxes * d.perbox) / d.daily,
+  }));
+
+  const totalCanDays = eachDays.reduce((s, d) => s + d.canDays, 0);
+  const excessDays   = totalCanDays - days;
+
+  const wrap = document.getElementById('result_wrap');
+  wrap.innerHTML = '';
+  wrap.style.display = 'block';
+
+  const detailRows = eachDays.map(d => `
+    <div class="drug-row">
+      <span class="drug-row-name">规格 ${d.lbl}（${d.boxes}盒×${d.perbox}片÷${d.daily}片/天）</span>
+      <span class="drug-row-val">${fmt(d.canDays)} 天</span>
+    </div>`).join('');
+
+  if (excessDays <= 0) {
+    wrap.innerHTML = `
+      <div class="verdict-ok">✅ 未超量</div>
+      <div class="stat-box">
+        <div class="stat-label">各规格可吃天数</div>
+        ${detailRows}
+        <div class="maintain-row">合并总计 <b>${fmt(totalCanDays)} 天</b>，审核天数 <b>${days} 天</b></div>
+      </div>
+      <button class="reset-btn" onclick="resetAll()">重置重新计算</button>`;
+  } else {
+    const extraMonths = excessDays / 30;
+    // 超出量按各规格换算：超出天数 × 该规格每日剂量 ÷ 每盒片数
+    const excessRows = eachDays.map(d => {
+      const excessPills    = excessDays * d.daily;
+      const excessBoxExact = excessPills / d.perbox;
+      const excessBoxFloor = Math.floor(excessBoxExact);
+      const tag = Number.isInteger(excessBoxExact)
+        ? `（${Math.round(excessPills)} 片）`
+        : `（${Math.round(excessPills)} 片，${excessBoxExact.toFixed(1)} ≈ ${excessBoxFloor}）`;
+      return `<div class="drug-row">
+        <span class="drug-row-name red">以规格 ${d.lbl} 计算</span>
+        <span class="drug-row-val red">${excessBoxFloor} 盒<span class="drug-row-sub">${tag}</span></span>
+      </div>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div class="verdict-over">⚠️ 超量</div>
+      <div class="stat-box">
+        <div class="stat-label">各规格可吃天数</div>
+        ${detailRows}
+        <div class="maintain-row">合并总计 <b>${fmt(totalCanDays)} 天</b>，审核天数 <b>${days} 天</b>，超出 <b>${fmt(excessDays)} 天</b>（约 <b>${fmt(extraMonths)} 个月</b>）</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label red">⚠️ 超出量（按各规格换算）</div>
+        ${excessRows}
+      </div>
+      <button class="reset-btn" onclick="resetAll()">重置重新计算</button>`;
+  }
+
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── 模式二：不同药品各自独立计算 ──
+function calcMode2(days) {
+  const prefix = 'm2_';
+  const labels = ['A','B','C','D'];
+  const drugs = labels.map(l => ({
+    lbl: l,
+    daily:  v(prefix + 'daily_'  + l.toLowerCase()),
+    perbox: v(prefix + 'perbox_' + l.toLowerCase()),
+    boxes:  v(prefix + 'boxes_'  + l.toLowerCase()),
+  }));
+
+  if (drugs[0].daily === null || drugs[0].perbox === null || drugs[0].boxes === null) {
+    showError(); return;
+  }
+
+  const valid = drugs.filter(d => d.daily !== null && d.perbox !== null && d.boxes !== null && d.perbox > 0);
+
+  const wrap = document.getElementById('result_wrap');
+  wrap.innerHTML = '';
+  wrap.style.display = 'block';
+
+  let overCount = 0;
+  let resultHtml = '';
+
+  valid.forEach(({ lbl, daily, perbox, boxes }) => {
+    // 独立审核：可吃天数 = boxes × perbox ÷ daily
+    const canDays  = (boxes * perbox) / daily;
+    const isOver   = canDays > days;
+    if (isOver) overCount++;
+
+    if (isOver) {
+      const excessDays  = canDays - days;
+      const extraMonths = excessDays / 30;
+      // 超出天数换算为该药超出的盒数
+      const excessPills    = excessDays * daily;
+      const excessBoxExact = excessPills / perbox;
+      const excessBoxFloor = Math.floor(excessBoxExact);
+      const excessTag = Number.isInteger(excessBoxExact)
+        ? `（${Math.round(excessPills)} 片）`
+        : `（${Math.round(excessPills)} 片，${excessBoxExact.toFixed(1)} ≈ ${excessBoxFloor}）`;
+      const theoryBoxCeil = Math.ceil((daily * days) / perbox);
+
+      resultHtml += `
+        <div class="drug-result-block over">
+          <div class="drug-result-title over">⚠️ 药品 ${lbl}：超量</div>
+          <div class="drug-result-detail">
+            理论最大需求：<b>${theoryBoxCeil} 盒</b>（${daily} 片/天 × ${days} 天 ÷ ${perbox} 片/盒）<br>
+            实际配药：<b>${boxes} 盒</b>，可吃 <b>${fmt(canDays)} 天</b><br>
+            超出：<b>${fmt(excessDays)} 天</b> = <b>${excessBoxFloor} 盒</b>${excessTag}，约 <b>${fmt(extraMonths)} 个月</b>
+          </div>
+        </div>`;
+    } else {
+      const theoryBoxCeil = Math.ceil((daily * days) / perbox);
+      resultHtml += `
+        <div class="drug-result-block ok">
+          <div class="drug-result-title ok">✅ 药品 ${lbl}：未超量</div>
+          <div class="drug-result-detail">
+            理论最大需求：<b>${theoryBoxCeil} 盒</b>&nbsp;&nbsp;实际配药：<b>${boxes} 盒</b>，可吃 <b>${fmt(canDays)} 天</b>
+          </div>
+        </div>`;
+    }
+  });
+
+  // 总判定
+  if (overCount === 0) {
+    wrap.innerHTML = `<div class="verdict-ok">✅ 所有药品均未超量</div>`;
+  } else if (overCount === valid.length) {
+    wrap.innerHTML = `<div class="verdict-over">⚠️ 所有药品均超量</div>`;
+  } else {
+    wrap.innerHTML = `<div class="verdict-over" style="background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)">⚠️ 部分药品超量</div>`;
+  }
+
+  wrap.innerHTML += resultHtml + `<button class="reset-btn" onclick="resetAll()">重置重新计算</button>`;
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showError() {
+  document.getElementById('error_msg').style.display = 'block';
+}
+
+function resetAll() {
+  const ids = ['days_x',
+    'm1_daily_a','m1_perbox_a','m1_boxes_a',
+    'm1_daily_b','m1_perbox_b','m1_boxes_b',
+    'm1_daily_c','m1_perbox_c','m1_boxes_c',
+    'm1_daily_d','m1_perbox_d','m1_boxes_d',
+    'm2_daily_a','m2_perbox_a','m2_boxes_a',
+    'm2_daily_b','m2_perbox_b','m2_boxes_b',
+    'm2_daily_c','m2_perbox_c','m2_boxes_c',
+    'm2_daily_d','m2_perbox_d','m2_boxes_d',
+  ];
+  ids.forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('total_days_preview').textContent = '—';
+  document.getElementById('result_wrap').style.display = 'none';
+  document.getElementById('error_msg').style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
